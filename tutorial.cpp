@@ -85,11 +85,20 @@ vector<ImageInfo> readFile(std::string filename) {
 		info.t = t;
 		imgVector.push_back(info);
 	}
-
-	
-
 	in.close();
 	return imgVector;
+}
+
+void calculateHDR(vector<ImageInfo> imgVector) {
+	/* additional input:
+		 a weighting function w(yij) (bell shaped curve)
+		 an initial camera response curve I(yij) – usually linear
+	calculate HDR values xj from images using
+		xj =SUMi(w(yij)t_i^2· I(y_ij/t_i)    / SUMi (w(y_ij)t_i^2)
+	
+	+ Geometric Foliensatz 3-6
+		
+	*/
 }
 
 	int main(int argc,char **argv) {
