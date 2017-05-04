@@ -92,29 +92,26 @@ vector<ImageInfo> readFile(std::string filename) {
 	return imgVector;
 }
 
-	int main(int argc,char **argv) {
-		vector<ImageInfo> images = readFile("img/HDRsequence/max.hdrgen");
+int main(int argc,char **argv) {
 
-		for (std::vector<ImageInfo>::const_iterator i = images.begin(); i != images.end(); ++i)
-			std::cout << (*i).imageName << ' ' << (*i).t << "\n";
+	//hdrgen datei einlesen
+	vector<ImageInfo> imageNames = readFile("img/HDRsequence/max.hdrgen");
 
-  // Define program usage and read command line parameters
-  //-------------------------------------------------------
+	for (std::vector<ImageInfo>::const_iterator i = imageNames.begin(); i != imageNames.end(); ++i)
+		std::cout << (*i).imageName << ' ' << (*i).t << "\n";
 
-  // Display program usage, when invoked from the command line with option '-h'.
-  cimg_usage("View the color profile of an image along the X axis");
+	std::cout << imageNames.size() << std::endl;
 
-  // Read image filename from the command line (or set it to "img/parrot.ppm" if option '-i' is not provided).
-  const char* file_i = cimg_option("-i",cimg_imagepath "max0.ppm","Input image");
+	//Alle bilder einlesen
+	std::vector<CImg<unsigned char>> images;
+	for (int i = 0; i < imageNames.size(); i++) {
+		std::string imageName = "img/HDRsequence/" + imageNames[i].imageName;
+		images.push_back(CImg<>(imageName.c_str()).normalize(0, 255));
+	}
 
-  // Read pre-blurring variance from the command line (or set it to 1.0 if option '-blur' is not provided).
-  const double sigma = cimg_option("-blur",1.0,"Variance of gaussian pre-blurring");
+	//Bild was angezeigt wird
+	const CImg<unsigned char> image = images[0];
 
-  // Init variables
-  //----------------
-
-  // Load an image, transform it to a color image (if necessary) and blur it with the standard deviation sigma.
-  const CImg<unsigned char> image = CImg<>(file_i).normalize(0,255).blur((float)sigma).resize(-100,-100,1,3);
 
   // Create two display window, one for the image, the other for the color profile.
   CImgDisplay
