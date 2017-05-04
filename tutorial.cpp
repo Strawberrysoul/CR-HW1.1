@@ -48,12 +48,16 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <cmath>
+
 using namespace std;
 using namespace cimg_library;
 
 #ifndef cimg_imagepath
 #define cimg_imagepath "img/HDRsequence/"
 #endif
+
+const double EulerConstant = std::exp(1.0);
 
 struct ImageInfo {
 	std::string imageName;
@@ -92,6 +96,25 @@ vector<ImageInfo> readFile(std::string filename) {
 	return imgVector;
 }
 
+//weight function
+float w(float y) {
+	return powf(EulerConstant, -4. * powf(y - 127.5f, 2) / (127.5f, 2));
+}
+
+//xj
+float calculte_irradiance(const CImg<unsigned char> image, float t) {
+	float result = 0.f;
+	float _t = 1 / t;
+	float I = 1.f; // TODO initiales I bestimmen
+
+	for (int i = 0; i < image.size(); i++) {
+		result += (w(image[i]) * pow(_t, 2) * (I / t)) / (w(image[i]) * pow(_t, 2));
+	}
+
+	return result;
+}
+
+
 int main(int argc,char **argv) {
 
 	//hdrgen datei einlesen
@@ -112,6 +135,9 @@ int main(int argc,char **argv) {
 	//Bild was angezeigt wird
 	const CImg<unsigned char> image = images[0];
 
+	std::cout << image.size() << std::endl;
+
+	
 
   // Create two display window, one for the image, the other for the color profile.
   CImgDisplay
