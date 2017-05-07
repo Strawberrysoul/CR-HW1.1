@@ -139,7 +139,7 @@ void plotGnuPlot() {
 	system("gnuplot -p -e \"set log y\"");
 	system("gnuplot -p -e \"set yrange[0.1:100]\"");
 	system("gnuplot -p -e \"set ytics('0' 0.1, '1' 1, '10' 10)\"");
-	system("gnuplot -p -e \"plot 'responseCurve.csv' with lines\"");
+	system("gnuplot -p -e \"plot 'responseCurve.csv' using 1:2 with lines\"");
 }
 
 //weight function
@@ -257,10 +257,11 @@ vector<rgb> calculate_response_curve(vector<CImg<unsigned char>> images, vector<
 	}
 
 	//normalisieren sodass I_128 = 1.0f ist
+	rgb i128 = I[127];
 	for (int i = 0; i < 256; i++) {
-		I[i].r /= I[127].r;
-		I[i].g /= I[127].g;
-		I[i].b /= I[127].b;
+		I[i].r /= i128.r;
+		I[i].g /= i128.g;
+		I[i].b /= i128.b;
 	}
 		
 
@@ -280,10 +281,10 @@ float calculate_objective_f(vector<CImg<unsigned char>> images, vector<ImageInfo
 				result += weight(img[j]) * ( powf( I[ img[j] ].r - t*x[j], 2 ) );
 			}
 			else if (j < 2 * img.size() / 3) { //Green values 
-				result += weight(img[j]) * ( powf( I[ img[j] ].g - t*x[j], 2) );
+				//result += weight(img[j]) * ( powf( I[ img[j] ].g - t*x[j], 2) );
 			}
 			else { //Blue values
-				result += weight(img[j]) * ( powf( I[ img[j] ].b - t*x[j], 2) );
+				//result += weight(img[j]) * ( powf( I[ img[j] ].b - t*x[j], 2) );
 			}
 		}
 	}
