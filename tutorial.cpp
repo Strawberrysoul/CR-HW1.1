@@ -145,13 +145,13 @@ float weight(float y) {
 }
 
 //xj
-CImg<unsigned char> calculate_irradiance(vector<CImg<unsigned char>> images, vector<ImageInfo> imgInfo, vector<rgb> I) {
-	CImg<unsigned char> result(images[0]); //bild mit gleichen dimensionen anlegen
+CImg<float> calculate_irradiance(vector<CImg<float>> images, vector<ImageInfo> imgInfo, vector<rgb> I) {
+	CImg<float> result(images[0]); //bild mit gleichen dimensionen anlegen
 	result.fill(0);
 	vector<float> numerator(images[0].size(), 0.0f);
 	vector<float> sum(images[0].size(), 0.0f);
 	float Iy, t, w;
-	CImg<unsigned char> img;
+	CImg<float> img;
 
 	for (int i = 0; i < images.size(); i++) {
 		img = images[i];
@@ -187,9 +187,9 @@ CImg<unsigned char> calculate_irradiance(vector<CImg<unsigned char>> images, vec
 	return result;
 }
 
-vector<rgb> calculate_response_curve(vector<CImg<unsigned char>> images, vector<ImageInfo> imgInfo, CImg<unsigned char> x) {
+vector<rgb> calculate_response_curve(vector<CImg<float>> images, vector<ImageInfo> imgInfo, CImg<float> x) {
 	vector<rgb> I(256, { 0.f,0.f,0.f });
-	CImg<unsigned char> img;
+	CImg<float> img;
 	float t;
 
 	for (int m = 0; m < I.size(); m++) {
@@ -235,23 +235,23 @@ vector<rgb> calculate_response_curve(vector<CImg<unsigned char>> images, vector<
 	return I;
 }
 
-rgb calculate_objective_f(vector<CImg<unsigned char>> images, vector<ImageInfo> imgInfo, vector<rgb> I, CImg<unsigned char> x) {
+rgb calculate_objective_f(vector<CImg<float>> images, vector<ImageInfo> imgInfo, vector<rgb> I, CImg<float> x) {
 	rgb result = { 0.f,0.f,0.f };
 	float t, w;
-	CImg<unsigned char> img;
+	CImg<float> img;
 
 	for (int i = 0; i < images.size(); i++) {
 		t = 1.0f / imgInfo[i].t;
 		img = images[i];
 		cimg_foroff(img, j) { //iteriert über bild buffer
 			if (j < img.size() / 3) { //Red values
-				result.r += weight(img[j]) * (powf(I[img[j]].r - t*x[j], 2));
+				result.r += weight(img[j]) * (powf(I[img[j]].r - (t*x[j]), 2));
 			}
 			else if (j < 2 * img.size() / 3) { //Green values 
-				result.g += weight(img[j]) * ( powf( I[ img[j] ].g - t*x[j], 2) );
+				result.g += weight(img[j]) * ( powf( I[ img[j] ].g - (t*x[j]), 2) );
 			}
 			else { //Blue values
-				result.b += weight(img[j]) * (powf(I[img[j]].g - t*x[j], 2));
+				result.b += weight(img[j]) * (powf(I[img[j]].g - (t*x[j]), 2));
 			}
 		}
 	}
@@ -279,7 +279,7 @@ int main(int argc, char **argv) {
 	std::cout << imageNames.size() << std::endl;
 
 	//Alle bilder einlesen
-	std::vector<CImg<unsigned char>> images;
+	std::vector<CImg<float>> images;
 	for (int i = 0; i < imageNames.size(); i++) {
 		std::string imageName = "img/HDRsequence/" + imageNames[i].imageName;
 		//std::string imageName = "img/fenster/d/" + imageNames[i].imageName;
@@ -297,7 +297,7 @@ int main(int argc, char **argv) {
 		float v = (i) / 128.f;
 		I[i] = { v,v,v };
 	}
-	CImg<unsigned char> x = calculate_irradiance(images, imageNames, I);
+	CImg<float> x = calculate_irradiance(images, imageNames, I);
 
 	rgb o = calculate_objective_f(images, imageNames, I, x);
 	cout << "o.rgb : " << o.r << ", " << o.g << ", " << o.b  << endl;
@@ -312,8 +312,12 @@ int main(int argc, char **argv) {
 		cout << "o.rgb : " << o.r << ", " << o.g << ", " << o.b << endl;
 	}
 	
-	CImg<unsigned char> image(x);
+	CImg<float> image(x);
 
+	for (int i = 0; i < image.size(); i++) {
+		image[i] = x[i];
+	}
+	image.normalize(0, 255);
 	//test ob die if abfragen die richtigen farbkanäle ansprechen
 	//
 	//CImg<unsigned char> image(images[0]);
@@ -340,7 +344,6 @@ int main(int argc, char **argv) {
 
 	//std::string imageName = "img/fenster/d/d0.ppm";
 	//image = (CImg<>(imageName.c_str()));
-
 
 	// Create two display window, one for the image, the other for the color profile.
 	CImgDisplay
