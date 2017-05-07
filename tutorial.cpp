@@ -48,7 +48,9 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <array>
 #include <cmath>
+#include <map>
 
 using namespace std;
 using namespace cimg_library;
@@ -59,10 +61,27 @@ using namespace cimg_library;
 
 const double EulerConstant = std::exp(1.0);
 
-struct ImageInfo {
+typedef struct ImageInfo {
 	std::string imageName;
 	float t;
 };
+
+typedef struct rgb{
+	float r;
+	float g;
+	float b;
+
+	rgb() :r(0.f),
+		g(0.f),
+		b(0.f) {}
+	rgb(float _r, float _g, float _b) :r(_r),
+		g(_g),
+		b(_b) {}
+};
+
+typedef map<float, map<int,array<rgb,256>>> CardinalityMap;
+
+
 
 // Main procedure
 //----------------
@@ -90,34 +109,199 @@ vector<ImageInfo> readFile(std::string filename) {
 		imgVector.push_back(info);
 	}
 
-	
-
 	in.close();
+
+	/*std::sort(imgVector.begin(), imgVector.end(),
+		[](const ImageInfo& lhs, const ImageInfo& rhs) {
+		return lhs.t > rhs.t;
+	});*/
+
 	return imgVector;
 }
 
+void writeToCSV(vector<rgb> I) {
+	ofstream myfile;
+	string r = "", g = "", b = "";
+	myfile.open("responseCurve.csv");
+	for (int i = 0; i < I.size(); i++) {
+		r = std::to_string(I[i].r);
+		g = std::to_string(I[i].g);
+		b = std::to_string(I[i].b);
+		myfile << std::to_string(i) << "," << r << "," << g << "," << b << "\n";
+	}
+	myfile.close();
+	return;
+}
+
+void plotGnuPlot() {
+	system("gnuplot -p -e \"set datafile separator ','\"");
+	system("gnuplot -p -e \"set xrange[0:255]\"");
+	system("gnuplot -p -e \"set log y\"");
+	system("gnuplot -p -e \"set yrange[0.1:100]\"");
+	system("gnuplot -p -e \"set ytics('0' 0.1, '1' 1, '10' 10)\"");
+	system("gnuplot -p -e \"plot 'responseCurve.csv' with lines\"");
+}
+
 //weight function
-float w(float y) {
-	return powf(EulerConstant, -4. * powf(y - 127.5f, 2) / (127.5f, 2));
+float weight(float y) {
+	if (y <= 0.f || y >= 255.f) return 0;
+	else return std::exp(-4.f * (powf(y - 127.5f, 2) / powf(127.5f, 2)));
 }
 
 //xj
-float calculte_irradiance(const CImg<unsigned char> image, float t) {
-	float result = 0.f;
-	float _t = 1 / t;
-	float I = 1.f; // TODO initiales I bestimmen
+CImg<unsigned char> calculate_irradiance(vector<CImg<unsigned char>> images, vector<ImageInfo> imgInfo, vector<rgb> I) {
+	CImg<unsigned char> result(images[0]); //bild mit gleichen dimensionen anlegen
+	result.fill(0);
+	vector<float> numerator(images[0].size(), 0.0f);
+	vector<float> sum(images[0].size(), 0.0f);
+	float Iy, t, w;
+	CImg<unsigned char> img;
 
-	for (int i = 0; i < image.size(); i++) {
-		result += (w(image[i]) * pow(_t, 2) * (I / t)) / (w(image[i]) * pow(_t, 2));
+	//cimg_foroff(result, j) { //iteriert über bild buffer
+	//	
+	//	for (int i = 0; i < images.size(); i++) {
+	//		img = images[i];
+	//		t = 1 / imgInfo[i].t; //exposure time
+
+	//		w = weight((float)img[j]);
+
+	//		//response function value for pixel value
+	//		if (j < img.size() / 3) { //Red values
+	//			Iy = I[img[j]].r;
+	//		}
+	//		else if (j < 2 * img.size() / 3) { //Green values 
+	//			Iy = I[img[j]].g;
+	//		}
+	//		else { //Blue values
+	//			Iy = I[img[j]].b;
+	//		}
+
+	//		//von paper
+	//		numerator[j] += (w * t * Iy);
+	//		sum[j] += (w * powf(t, 2));
+	//		//von folien
+	//		//result[j] += (w * powf(t, 2) * (Iy / t)) / (w * powf(t, 2));
+	//	}
+
+	//	result[j] = (unsigned char)round(numerator[j] / sum[j]);
+	//}
+	for (int i = 0; i < images.size(); i++) {
+		img = images[i];
+		t = 1.0f / imgInfo[i].t; //exposure time
+		
+		cimg_foroff(img, j) { //iteriert über bild buffer
+			w = weight((float)img[j]);
+			
+			//response function value for pixel value
+			if (j < img.size() / 3) { //Red values
+				Iy = I[ img[j] ].r;
+			}
+			else if (j < 2 * img.size() / 3) { //Green values 
+				Iy = I[ img[j] ].g;
+			}
+			else { //Blue values
+				Iy = I[ img[j] ].b;
+			}
+
+			//von paper
+			numerator[j] += (w * t * Iy);
+			sum[j] += (w * powf(t, 2));
+			//von folien
+			//result[j] += (w * powf(t, 2) * (Iy / t)) / (w * powf(t, 2));
+		}
+	}
+
+	for (int y = 0; y < result.size(); y++) {
+		if (sum[y] != 0) {
+			result[y] = numerator[y] / sum[y];
+		}
+		
+	}
+
+
+	return result;
+}
+
+vector<rgb> calculate_response_curve(vector<CImg<unsigned char>> images, vector<ImageInfo> imgInfo, CImg<unsigned char> x) {
+	vector<rgb> I(256, {0.f,0.f,0.f});
+	rgb Card;
+	CImg<unsigned char> img;
+	float t;
+		
+	for (int m = 0; m < I.size(); m++) {
+		Card = { 0.f,0.f,0.f };
+		for (int i = 0; i < images.size(); i++) {
+			img = images[i];
+			t = 1.0f / imgInfo[i].t;
+
+			cimg_foroff(img, j) { //iteriert über bild buffer
+				if ((int)img[j] == m) {
+					if (j < img.size() / 3) { //Red values
+						I[m].r += t * x[j];
+						Card.r += 1;
+					}
+					else if (j < 2 * img.size() / 3) { //Green values 
+						I[m].g += t * x[j];
+						Card.g += 1;
+					}
+					else { //Blue values
+						I[m].b += t * x[j];
+						Card.b += 1;
+					}
+				}
+			}
+		}
+		I[m].r /= Card.r;
+		I[m].g /= Card.g;
+		I[m].b /= Card.b;
+	}
+
+	//normalisieren sodass I_128 = 1.0f ist
+	for (int i = 0; i < 256; i++) {
+		I[i].r /= I[127].r;
+		I[i].g /= I[127].g;
+		I[i].b /= I[127].b;
+	}
+		
+
+	return I;
+}
+
+float calculate_objective_f(vector<CImg<unsigned char>> images, vector<ImageInfo> imgInfo, vector<rgb> I, CImg<unsigned char> x) {
+	float result = 0.f;
+	float t, w;
+	CImg<unsigned char> img;
+
+	for (int i = 0; i < images.size(); i++) {
+		t = 1.0f / imgInfo[i].t;
+		img = images[i];
+		cimg_foroff(img, j) { //iteriert über bild buffer
+			if (j < img.size() / 3) { //Red values
+				result += weight(img[j]) * ( powf( I[ img[j] ].r - t*x[j], 2 ) );
+			}
+			else if (j < 2 * img.size() / 3) { //Green values 
+				result += weight(img[j]) * ( powf( I[ img[j] ].g - t*x[j], 2) );
+			}
+			else { //Blue values
+				result += weight(img[j]) * ( powf( I[ img[j] ].b - t*x[j], 2) );
+			}
+		}
 	}
 
 	return result;
 }
 
 
+bool imageInfoComparison(ImageInfo i, ImageInfo j) {
+	cout << (i.t == j.t) << endl;
+	return (i.t == j.t);
+}
+
 int main(int argc,char **argv) {
 
 	//hdrgen datei einlesen
+	// dim: 308 x 200
+	// 61600 Buffer Einträge pro Farbkanal = 61600 x 3 = 184800
 	vector<ImageInfo> imageNames = readFile("img/HDRsequence/max.hdrgen");
 
 	for (std::vector<ImageInfo>::const_iterator i = imageNames.begin(); i != imageNames.end(); ++i)
@@ -129,14 +313,45 @@ int main(int argc,char **argv) {
 	std::vector<CImg<unsigned char>> images;
 	for (int i = 0; i < imageNames.size(); i++) {
 		std::string imageName = "img/HDRsequence/" + imageNames[i].imageName;
-		images.push_back(CImg<>(imageName.c_str()).normalize(0, 255));
+		images.push_back(CImg<>(imageName.c_str()));
 	}
 
+	//einträge mit gleicher exposure time löschen, um cardinalität anzulegen
+	/*std::vector<ImageInfo>::iterator it;
+	it = std::unique(imageNames.begin(), imageNames.end(), imageInfoComparison);
+	imageNames.resize(std::distance(imageNames.begin(), it));*/
+
+	//initiale response curve mit I_1 = 1/128, I_128 = 1, I_256 = 2f, 
+	vector<rgb> I(256);
+	for (int i = 0; i < 256; i++) {
+		float v = (i + 1) / 128.f;
+		I[i] = { v,v,v };
+	}
+	CImg<unsigned char> image = calculate_irradiance(images, imageNames, I);
+
+	float o = calculate_objective_f(images, imageNames, I, image);
+	cout << "o: " << o << endl;
+	
+	//TODO convergenz durch delta oder so in while schleife abfragen
+	for (int n = 0; n < 5; n++) {
+		cout << "Iteration: " << n << endl;
+		I = calculate_response_curve(images, imageNames, image);
+		image = calculate_irradiance(images, imageNames, I);
+
+		o = calculate_objective_f(images, imageNames, I, image);
+		cout << "o: " << o << endl;
+	}
+
+	writeToCSV(I);
+	//plotGnuPlot();
+
 	//Bild was angezeigt wird
-	const CImg<unsigned char> image = images[0];
+	//const CImg<unsigned char> image = x;
 
-	std::cout << image.size() << std::endl;
-
+	//std::cout << image.size() << std::endl;
+	std::cout << (int)round(0.8f) << std::endl;
+	//std::cout << std::to_string(image[61599]) << std::endl;
+	//std::cout << std::to_string(image(0,0,1)) << std::endl;
 	
 
   // Create two display window, one for the image, the other for the color profile.
