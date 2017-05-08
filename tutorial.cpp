@@ -1,65 +1,16 @@
-/*
-#
-#  File        : tutorial.cpp
-#                ( C++ source file )
-#
-#  Description : View the color profile of an image, along the X-axis.
-#                This file is a part of the CImg Library project.
-#                ( http://cimg.eu )
-#
-#  Copyright   : David Tschumperle
-#                ( http://tschumperle.users.greyc.fr/ )
-#
-#  License     : CeCILL v2.0
-#                ( http://www.cecill.info/licences/Licence_CeCILL_V2-en.html )
-#
-#  This software is governed by the CeCILL  license under French law and
-#  abiding by the rules of distribution of free software.  You can  use,
-#  modify and/ or redistribute the software under the terms of the CeCILL
-#  license as circulated by CEA, CNRS and INRIA at the following URL
-#  "http://www.cecill.info".
-#
-#  As a counterpart to the access to the source code and  rights to copy,
-#  modify and redistribute granted by the license, users are provided only
-#  with a limited warranty  and the software's author,  the holder of the
-#  economic rights,  and the successive licensors  have only  limited
-#  liability.
-#
-#  In this respect, the user's attention is drawn to the risks associated
-#  with loading,  using,  modifying and/or developing or reproducing the
-#  software by the user in light of its specific status of free software,
-#  that may mean  that it is complicated to manipulate,  and  that  also
-#  therefore means  that it is reserved for developers  and  experienced
-#  professionals having in-depth computer knowledge. Users are therefore
-#  encouraged to load and test the software's suitability as regards their
-#  requirements in conditions enabling the security of their systems and/or
-#  data to be ensured and,  more generally, to use and operate it in the
-#  same conditions as regards security.
-#
-#  The fact that you are presently reading this means that you have had
-#  knowledge of the CeCILL license and that you accept its terms.
-#
-*/
-
-// Include CImg library file and use its main namespace
+// Capturing Reality Projekt 1
+// von Janina Hüther, Lennart Jarms
 #include "CImg.h"
 #include <iostream>
 #include <iomanip>
 #include <fstream>
 #include <string>
 #include <vector>
-#include <array>
 #include <cmath>
-#include <map>
 
 using namespace std;
 using namespace cimg_library;
 
-#ifndef cimg_imagepath
-#define cimg_imagepath "img/HDRsequence/"
-#endif
-
-const double EulerConstant = std::exp(1.0);
 
 typedef struct ImageInfo {
 	std::string imageName;
@@ -79,29 +30,19 @@ typedef struct rgb {
 		b(_b) {}
 };
 
-typedef map<float, map<int, array<rgb, 256>>> CardinalityMap;
 
-
-
-// Main procedure
-//----------------
-//void main()
-//{
-
-//}
-vector<ImageInfo> readFile(std::string filename) {
-	string string;
-	std::ifstream in(filename);
-	std::string line;
+vector<ImageInfo> readFile(string filename) {
+	ifstream in(filename);
+	string line;
 	if (!in.is_open()) {
 		cout << "loadHDRGEN: can not open " << endl;
 	}
 
 	vector<ImageInfo> imgVector;
-	std::string img;
+	string img;
 	float t;
 	const int MAX = 256;
-	for (std::string img; in >> setw(MAX) >> img; ) {
+	for (string img; in >> setw(MAX) >> img; ) {
 		in >> setw(MAX) >> t;
 		ImageInfo info;
 		info.imageName = img;
@@ -111,14 +52,10 @@ vector<ImageInfo> readFile(std::string filename) {
 
 	in.close();
 
-	/*std::sort(imgVector.begin(), imgVector.end(),
-	[](const ImageInfo& lhs, const ImageInfo& rhs) {
-	return lhs.t > rhs.t;
-	});*/
-
 	return imgVector;
 }
 
+//schreibt response curve in die Datei "responseCurve.csv" im build ordner
 void writeToCSV(vector<rgb> I) {
 	ofstream myfile;
 	string r = "", g = "", b = "";
@@ -133,13 +70,13 @@ void writeToCSV(vector<rgb> I) {
 	return;
 }
 
+//Hilfsfunktion zum Aufrufen von Gnuplot
 void plotGnuPlot() {
 	system("gnuplot -p -e \"load 'responseCurve.p'\"");
 }
 
-//weight function
+//w
 float weight(float y) {
-	//if (y >= 255.f) cout << "big y: " << y << endl;
 	if (y <= 0.f || y >= 255.f) return 0;
 	else return std::exp(-4.f * (powf(y - 127.5f, 2) / powf(127.5f, 2)));
 }
@@ -171,12 +108,8 @@ CImg<float> calculate_irradiance(vector<CImg<float>> images, vector<ImageInfo> i
 				Iy = I[img[j]].b;
 			}
 
-			//von paper
 			numerator[j] += (w * t * Iy);
 			sum[j] += (w * powf(t, 2));
-
-			//von folien
-			//result[j] += (w * powf(t, 2) * (Iy / t)) / (w * powf(t, 2));
 		}
 	}
 
@@ -185,19 +118,15 @@ CImg<float> calculate_irradiance(vector<CImg<float>> images, vector<ImageInfo> i
 			result[y] = numerator[y] / sum[y];
 		}
 		else {
-			result[y] = numerator[y];
+			//result[y] = numerator[y];
+			result[y] = 0;
 		}
-			
-		if (numerator[y] / sum[y] > 100.0f) {
-			cout << "hoch: " << sum[y] << " " << numerator[y] << " " << numerator[y] / sum[y] << endl;
-		}
-		
 	}
-
 
 	return result;
 }
 
+//I
 vector<rgb> calculate_response_curve(vector<CImg<float>> images, vector<ImageInfo> imgInfo, CImg<float> x) {
 	vector<rgb> I(256, { 0.f,0.f,0.f });
 	CImg<float> img;
@@ -208,10 +137,8 @@ vector<rgb> calculate_response_curve(vector<CImg<float>> images, vector<ImageInf
 		for (int i = 0; i < images.size(); i++) {
 			img = images[i];
 			t = 1.0f / imgInfo[i].t;
-			//if (std::equalimgInfo[i].imageName)
 			cimg_foroff(img, j) { //iteriert über bild buffer
 				if ((int)img[j] == m) {
-					//if ((int)x[j] > 100) cout << (int)x[j] << endl;
 					if (j < img.size() / 3) { //Red values
 						I[m].r += t * x[j];
 						Card.r += 1;
@@ -227,8 +154,6 @@ vector<rgb> calculate_response_curve(vector<CImg<float>> images, vector<ImageInf
 				}
 			}
 		}
-		//cout << "Card.r: " << Card.r << endl;
-		//cout << "I[m].r: " << I[m].r << endl;
 		I[m].r /= Card.r;
 		I[m].g /= Card.g;
 		I[m].b /= Card.b;
@@ -242,10 +167,10 @@ vector<rgb> calculate_response_curve(vector<CImg<float>> images, vector<ImageInf
 		I[i].b /= i128.b;
 	}
 
-
 	return I;
 }
 
+//O
 rgb calculate_objective_f(vector<CImg<float>> images, vector<ImageInfo> imgInfo, vector<rgb> I, CImg<float> x) {
 	rgb result = { 0.f,0.f,0.f };
 	float t;
@@ -270,37 +195,68 @@ rgb calculate_objective_f(vector<CImg<float>> images, vector<ImageInfo> imgInfo,
 	return result;
 }
 
+CImg<float> calculate_tone_mapping(CImg<float> x) {
+	CImg<float> result_xyz = x.get_RGBtoXYZ();
+	float b = 0.5f; //0.0 - 1.0
+	float L_avg = 0.f;
+	float Lw_max = 0.f;
+	float Ld_max = 100.f;
 
-bool imageInfoComparison(ImageInfo i, ImageInfo j) {
-	cout << (i.t == j.t) << endl;
-	return (i.t == j.t);
+	cimg_forXY(result_xyz, x, y) {
+		L_avg += result_xyz(x, y, 0, 1);
+		if (result_xyz(x, y, 0, 1) > Lw_max)
+			Lw_max = result_xyz(x, y, 0, 1);
+	}
+	int w = result_xyz.width(), h = result_xyz.height();
+	L_avg /= (w * h);
+
+	Lw_max /= L_avg; //max luminanz normalisieren
+
+	CImg<float> tmpImg(result_xyz);
+
+	cimg_forXY(result_xyz, x, y) {
+		float L_w = result_xyz(x, y, 0, 1) / L_avg;
+		float L_d_left = (Ld_max * 0.01f) / log10(Lw_max + 1.f);
+		float L_d_right = (log(L_w + 1.f) / log(2.f + powf( L_w/Lw_max, log(b)/log(.5f)) * 8.f ));
+		float L_d = L_d_left * L_d_right;
+
+		tmpImg(x, y, 0, 1) = L_d;
+	}
+
+	cimg_forXY(result_xyz, x, y) {
+		float L_w = result_xyz(x, y, 0, 1) / L_avg;
+		float L_d_left = (Ld_max * 0.01f) / log10(Lw_max + 1.f);
+		float L_d_right = (log(L_w + 1.f) / log(2.f + powf(L_w / Lw_max, log(b) / log(.5f)) * 8.f));
+		float L_d = L_d_left * L_d_right;
+
+		tmpImg(x, y, 0, 1) = L_d;
+	}
+
+	//skalieren der channel 0 und 2 abh. von channel 1
+	cimg_forXY(result_xyz, x, y) {
+		float s = tmpImg(x, y, 0, 1) / result_xyz(x, y, 0, 1);
+		result_xyz(x, y, 0, 0) *= s;
+		result_xyz(x, y, 0, 1) *= s;
+		result_xyz(x, y, 0, 2) *= s;
+	}
+
+	return result_xyz.get_XYZtoRGB();
 }
 
 int main(int argc, char **argv) {
-
-	//hdrgen datei einlesen
-	// dim: 308 x 200
-	// 61600 Buffer Einträge pro Farbkanal = 61600 x 3 = 184800
-	vector<ImageInfo> imageNames = readFile("img/HDRsequence/max.hdrgen");
-	//vector<ImageInfo> imageNames = readFile("img/fenster/d/d.hdrgen");
-
+	
+	//.hdrgen einlesen
+	vector<ImageInfo> imageNames = readFile("img/HDRsequence/p.hdrgen");
 	for (std::vector<ImageInfo>::const_iterator i = imageNames.begin(); i != imageNames.end(); ++i)
-		std::cout << (*i).imageName << ' ' << (*i).t << " " << 1. / (*i).t <<  "\n";
+		std::cout << (*i).imageName << " t: " << 1. / (*i).t <<  "\n";
 
-	std::cout << imageNames.size() << std::endl;
 
 	//Alle bilder einlesen
 	std::vector<CImg<float>> images;
 	for (int i = 0; i < imageNames.size(); i++) {
 		std::string imageName = "img/HDRsequence/" + imageNames[i].imageName;
-		//std::string imageName = "img/fenster/d/" + imageNames[i].imageName;
 		images.push_back(CImg<>(imageName.c_str(	)));
 	}
-
-	//einträge mit gleicher exposure time löschen, um cardinalität anzulegen
-	/*std::vector<ImageInfo>::iterator it;
-	it = std::unique(imageNames.begin(), imageNames.end(), imageInfoComparison);
-	imageNames.resize(std::distance(imageNames.begin(), it));*/
 
 	//initiale response curve mit I_1 = 1/128, I_128 = 1, I_256 = 2f, 
 	vector<rgb> I(256);
@@ -311,7 +267,7 @@ int main(int argc, char **argv) {
 	CImg<float> x = calculate_irradiance(images, imageNames, I);
 
 	rgb o = calculate_objective_f(images, imageNames, I, x);
-	cout << "o.rgb : " << o.r << ", " << o.g << ", " << o.b  << endl;
+	cout << "O.rgb : " << o.r << ", " << o.g << ", " << o.b  << endl;
 
 	//TODO convergenz durch delta oder so in while schleife abfragen
 	for (int n = 0; n < 5; n++) {
@@ -319,45 +275,68 @@ int main(int argc, char **argv) {
 		I = calculate_response_curve(images, imageNames, x);
 		x = calculate_irradiance(images, imageNames, I);
 		o = calculate_objective_f(images, imageNames, I, x);
-		cout << "o.rgb : " << o.r << ", " << o.g << ", " << o.b << endl;
+		cout << "O.rgb : " << o.r << ", " << o.g << ", " << o.b << endl;
 	}
 	
-	CImg<float> image(x);
+	/*CImg<float> image(x);
 	x.normalize(0, 255);
 	for (int i = 0; i < image.size(); i++) {
-		image[i] = x[i] * 2;
+		image[i] = x[i] * 50;
 		if (image[i] > 255.f)
 			image[i] = 255.f;
-	}
-
-	//image.normalize(0, 255);
-	//test ob die if abfragen die richtigen farbkanäle ansprechen
-	//
-	//CImg<unsigned char> image(images[0]);
-	//for (int j = 0; j < image.size(); j++) {
-	//	if (j < image.size() / 3) { //Red values
-	//		image[j] = images[0][j] * 2;
-	//	}
-	//	else if (j < 2 * image.size() / 3) { //Green values 
-	//		image[j] = images[0][j] * 0.5f;
-	//	}
-	//	else { //Blue values
-	//		image[j] = images[0][j] * 0.25f;
-	//	}
-	//}
-
-	//test der weight funktion
-	//
-	/*for (int j = 0; j < 256; j++) {
-	cout << j  << ": " << weight(j) << endl;
 	}*/
+	CImg<float> image = calculate_tone_mapping(x);
 
 	writeToCSV(I);
-	//plotGnuPlot(); wirst du nicht ausführen können, musst gnuplot installieren :S
+	//plotGnuPlot(); führt den gnuplot befehl zur anzeige der response curve aus
 
-	//std::string imageName = "img/fenster/d/d0.ppm";
-	//image = (CImg<>(imageName.c_str()));
 
+
+	// ==============================
+	// = Code vom CImg tutorial.cpp =
+	// ==============================
+	/*
+	#
+	#  File        : tutorial.cpp
+	#                ( C++ source file )
+	#
+	#  Description : View the color profile of an image, along the X-axis.
+	#                This file is a part of the CImg Library project.
+	#                ( http://cimg.eu )
+	#
+	#  Copyright   : David Tschumperle
+	#                ( http://tschumperle.users.greyc.fr/ )
+	#
+	#  License     : CeCILL v2.0
+	#                ( http://www.cecill.info/licences/Licence_CeCILL_V2-en.html )
+	#
+	#  This software is governed by the CeCILL  license under French law and
+	#  abiding by the rules of distribution of free software.  You can  use,
+	#  modify and/ or redistribute the software under the terms of the CeCILL
+	#  license as circulated by CEA, CNRS and INRIA at the following URL
+	#  "http://www.cecill.info".
+	#
+	#  As a counterpart to the access to the source code and  rights to copy,
+	#  modify and redistribute granted by the license, users are provided only
+	#  with a limited warranty  and the software's author,  the holder of the
+	#  economic rights,  and the successive licensors  have only  limited
+	#  liability.
+	#
+	#  In this respect, the user's attention is drawn to the risks associated
+	#  with loading,  using,  modifying and/or developing or reproducing the
+	#  software by the user in light of its specific status of free software,
+	#  that may mean  that it is complicated to manipulate,  and  that  also
+	#  therefore means  that it is reserved for developers  and  experienced
+	#  professionals having in-depth computer knowledge. Users are therefore
+	#  encouraged to load and test the software's suitability as regards their
+	#  requirements in conditions enabling the security of their systems and/or
+	#  data to be ensured and,  more generally, to use and operate it in the
+	#  same conditions as regards security.
+	#
+	#  The fact that you are presently reading this means that you have had
+	#  knowledge of the CeCILL license and that you accept its terms.
+	#
+	*/
 	// Create two display window, one for the image, the other for the color profile.
 	CImgDisplay
 		main_disp(image, "Color image (Try to move mouse pointer over)", 0),
