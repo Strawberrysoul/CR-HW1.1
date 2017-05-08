@@ -1,4 +1,6 @@
 // Capturing Reality Projekt 1
+// HDR Recovery mit Robertson et al. Algorithmus, 1999
+// Tonemapping mit Drago et al. Algorithmus, 2003
 // von Janina Hüther, Lennart Jarms
 #include "CImg.h"
 #include <iostream>
@@ -195,6 +197,7 @@ rgb calculate_objective_f(vector<CImg<float>> images, vector<ImageInfo> imgInfo,
 	return result;
 }
 
+//Tonemapping von Drago et al. 2003
 CImg<float> calculate_tone_mapping(CImg<float> x) {
 	CImg<float> result_xyz = x.get_RGBtoXYZ();
 	float b = 0.5f; //0.0 - 1.0
