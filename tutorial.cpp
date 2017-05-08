@@ -118,8 +118,8 @@ CImg<float> calculate_irradiance(vector<CImg<float>> images, vector<ImageInfo> i
 			result[y] = numerator[y] / sum[y];
 		}
 		else {
-			//result[y] = numerator[y];
-			result[y] = 0;
+			result[y] = numerator[y];
+			//result[y] = 0;
 		}
 	}
 
@@ -270,13 +270,31 @@ int main(int argc, char **argv) {
 	cout << "O.rgb : " << o.r << ", " << o.g << ", " << o.b  << endl;
 
 	//TODO convergenz durch delta oder so in while schleife abfragen
-	for (int n = 0; n < 5; n++) {
+	rgb o_new;
+	bool converged;
+	int n = 1;
+	do {
+		cout << "Iteration: " << n << endl;
+		I = calculate_response_curve(images, imageNames, x);
+		x = calculate_irradiance(images, imageNames, I);
+		o_new = calculate_objective_f(images, imageNames, I, x);
+
+		converged = 
+			(o.r - o_new.r) / o.r < 0.05f && 
+			(o.g - o_new.g) / o.g < 0.05f &&
+			(o.b - o_new.b) / o.b < 0.05f;
+
+		n += 1;
+		o = o_new;
+		cout << "O.rgb : " << o.r << ", " << o.g << ", " << o.b << endl;
+	} while (!converged);
+	/*for (int n = 0; n < 2; n++) {
 		cout << "Iteration: " << n << endl;
 		I = calculate_response_curve(images, imageNames, x);
 		x = calculate_irradiance(images, imageNames, I);
 		o = calculate_objective_f(images, imageNames, I, x);
 		cout << "O.rgb : " << o.r << ", " << o.g << ", " << o.b << endl;
-	}
+	}*/
 	
 	/*CImg<float> image(x);
 	x.normalize(0, 255);
@@ -339,7 +357,7 @@ int main(int argc, char **argv) {
 	*/
 	// Create two display window, one for the image, the other for the color profile.
 	CImgDisplay
-		main_disp(image, "Color image (Try to move mouse pointer over)", 0),
+		main_disp(image, "Color image", 0),
 		draw_disp(500, 400, "Color profile of the X-axis", 0);
 
 	// Define colors used to plot the profile, and a hatch to draw the vertical line
