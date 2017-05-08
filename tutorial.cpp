@@ -139,7 +139,7 @@ void plotGnuPlot() {
 
 //weight function
 float weight(float y) {
-	if (y > 255.f) cout << "big y: " << y << endl;
+	//if (y >= 255.f) cout << "big y: " << y << endl;
 	if (y <= 0.f || y >= 255.f) return 0;
 	else return std::exp(-4.f * (powf(y - 127.5f, 2) / powf(127.5f, 2)));
 }
@@ -158,7 +158,7 @@ CImg<float> calculate_irradiance(vector<CImg<float>> images, vector<ImageInfo> i
 		t = 1.0f / imgInfo[i].t; //exposure time
 
 		cimg_foroff(img, j) { //iteriert über bild buffer
-			w = weight((float)img[j]);
+			w = weight(img[j]);
 
 			//response function value for pixel value
 			if (j < img.size() / 3) { //Red values
@@ -174,13 +174,24 @@ CImg<float> calculate_irradiance(vector<CImg<float>> images, vector<ImageInfo> i
 			//von paper
 			numerator[j] += (w * t * Iy);
 			sum[j] += (w * powf(t, 2));
+
 			//von folien
 			//result[j] += (w * powf(t, 2) * (Iy / t)) / (w * powf(t, 2));
 		}
 	}
 
 	for (int y = 0; y < result.size(); y++) {
-		result[y] = numerator[y] / sum[y];
+		if (sum[y] != 0.0f) {
+			result[y] = numerator[y] / sum[y];
+		}
+		else {
+			result[y] = numerator[y];
+		}
+			
+		if (numerator[y] / sum[y] > 100.0f) {
+			cout << "hoch: " << sum[y] << " " << numerator[y] << " " << numerator[y] / sum[y] << endl;
+		}
+		
 	}
 
 
@@ -237,7 +248,7 @@ vector<rgb> calculate_response_curve(vector<CImg<float>> images, vector<ImageInf
 
 rgb calculate_objective_f(vector<CImg<float>> images, vector<ImageInfo> imgInfo, vector<rgb> I, CImg<float> x) {
 	rgb result = { 0.f,0.f,0.f };
-	float t, w;
+	float t;
 	CImg<float> img;
 
 	for (int i = 0; i < images.size(); i++) {
@@ -274,7 +285,7 @@ int main(int argc, char **argv) {
 	//vector<ImageInfo> imageNames = readFile("img/fenster/d/d.hdrgen");
 
 	for (std::vector<ImageInfo>::const_iterator i = imageNames.begin(); i != imageNames.end(); ++i)
-		std::cout << (*i).imageName << ' ' << (*i).t << "\n";
+		std::cout << (*i).imageName << ' ' << (*i).t << " " << 1. / (*i).t <<  "\n";
 
 	std::cout << imageNames.size() << std::endl;
 
@@ -307,17 +318,19 @@ int main(int argc, char **argv) {
 		cout << "Iteration: " << n << endl;
 		I = calculate_response_curve(images, imageNames, x);
 		x = calculate_irradiance(images, imageNames, I);
-
 		o = calculate_objective_f(images, imageNames, I, x);
 		cout << "o.rgb : " << o.r << ", " << o.g << ", " << o.b << endl;
 	}
 	
 	CImg<float> image(x);
-
+	x.normalize(0, 255);
 	for (int i = 0; i < image.size(); i++) {
-		image[i] = x[i];
+		image[i] = x[i] * 2;
+		if (image[i] > 255.f)
+			image[i] = 255.f;
 	}
-	image.normalize(0, 255);
+
+	//image.normalize(0, 255);
 	//test ob die if abfragen die richtigen farbkanäle ansprechen
 	//
 	//CImg<unsigned char> image(images[0]);
